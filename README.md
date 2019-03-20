@@ -1,6 +1,6 @@
-# misterija_mk
+# Misterija MK Flutter
 
-Flutter mobile application for misterija-mk.
+Flutter cross platform mobile application for Misterija MK.
 
 ## Getting Started
 
