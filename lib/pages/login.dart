@@ -13,11 +13,11 @@ import 'package:misterija_mk/pages/register.dart';
 import 'package:misterija_mk/pages/home.dart';
 
 class LoginPage extends StatefulWidget {
-  LoginPage(this.isLoginSuccessful);
+  LoginPage(this.isRegisterSuccessful);
 
-  final bool isLoginSuccessful;
+  final bool isRegisterSuccessful;
 
-  State<StatefulWidget> createState() => _LoginPageState(isLoginSuccessful);
+  State<StatefulWidget> createState() => _LoginPageState(isRegisterSuccessful);
 }
 
 class _LoginPageState extends State<LoginPage> {
@@ -128,7 +128,7 @@ class _LoginPageState extends State<LoginPage> {
     var jsonData = json.decode(jsonString);
 
     Token.fromJson(jsonData);
-    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+    var sharedPreferences = await SharedPreferences.getInstance();
     sharedPreferences.setString('token', Token.token);
 
     return true;

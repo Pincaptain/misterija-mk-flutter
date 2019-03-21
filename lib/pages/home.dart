@@ -244,7 +244,7 @@ class _HomePageState extends State<HomePage> {
 
   _onLogout() async {
     if (Token.doLogout()) {
-      SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+      var sharedPreferences = await SharedPreferences.getInstance();
       sharedPreferences.setString('token', null);
 
       Navigator.push(
@@ -257,7 +257,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   _onSearch() async {
-    String query = await showSearch(
+    var query = await showSearch(
       context: context,
       delegate: PostSearch(),
     );
@@ -523,7 +523,7 @@ class PostSearch extends SearchDelegate<String> {
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    List<String> filteredSuggestions = _suggestions.where((suggestion) => suggestion.toLowerCase().contains(query.toLowerCase())).toList();
+    var filteredSuggestions = _suggestions.where((suggestion) => suggestion.toLowerCase().contains(query.toLowerCase())).toList();
 
     if (query != '') {
       return ListView.builder(
