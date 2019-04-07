@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:misterija_mk/models/users.dart';
 import 'package:misterija_mk/models/auth.dart';
@@ -28,6 +28,9 @@ class _HomePageState extends State<HomePage> {
   TopicsBloc _topicsBloc = TopicsBloc();
   PostsBloc _postsBloc = new PostsBloc();
 
+  // Write user state since drawers calls build when opened
+  CurrentProfile _user;
+
   _HomePageState() {
     SystemChrome.setEnabledSystemUIOverlays(SystemUiOverlay.values);
   }
@@ -36,17 +39,38 @@ class _HomePageState extends State<HomePage> {
   @mustCallSuper
   initState() {
     super.initState();
+    _onUser();
+
     _userBloc.fetchUser();
     _topicsBloc.fetchTopics();
     _postsBloc.fetchPosts();
   }
 
+  _onUser() {
+    /*
+     * Listen for changes in current user
+     * If new current user comes change the state 
+     */
+    _userBloc.user.listen((user) {
+      setState(() {
+       _user = user;
+      });
+    });
+  }
+
   _onAccount() {
+    /*
+     * Redirect to accout page 
+     */
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (context) => AccountPage()));
   }
 
   _onLogout() async {
+    /*
+     * Logout the user by calling token logout function
+     * Check Token.doLogout for more info
+     */
     if (await Token.doLogout()) {
       Navigator.of(context)
         .push(MaterialPageRoute(builder: (context) => LoginPage()));
@@ -54,6 +78,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   _onSearch() async {
+    /*
+     * Provide a post search delegate that returns a query
+     * Use the query to retun a new list of posts
+     */
     var query = await showSearch(
       context: context,
       delegate: PostSearch(),
@@ -63,6 +91,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   _onSettings(int value) {
+    /*
+     * Do some self descriptive operation based on settings 
+     */
     switch (value) {
       case 0: // Case: Settings Popup Item
         Navigator.of(context)
@@ -88,6 +119,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _onRefresh() async {
+    /*
+     * Refresh the feed by fetching all the posts, topics and users again
+     */
     _userBloc.fetchUser();
     _topicsBloc.fetchTopics();
     _postsBloc.fetchPosts();
@@ -95,6 +129,9 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    /*
+     * Build the home page view 
+     */
     return Theme(
       data: Theme.of(context).copyWith(
         cardColor: Colors.blueGrey,
@@ -188,34 +225,28 @@ class _HomePageState extends State<HomePage> {
             color: Colors.blueGrey,
             child: ListView(
               children: <Widget>[
-                StreamBuilder<CurrentProfile>(
-                  stream: _userBloc.user,
-                  builder: (context, snapshot) {
-                    print(snapshot.data == null ? 'Null' : snapshot.data.avatar);
-                    return snapshot.data == null ? Container() : UserAccountsDrawerHeader(
-                      accountName: Text(
-                        snapshot.data.user.firstName.isEmpty ? snapshot.data.user.lastName.isEmpty ? snapshot.data.user.username : snapshot.data.user.lastName : snapshot.data.user.firstName + ' ' + snapshot.data.user.lastName,
-                      ),
-                      accountEmail: Text(
-                        snapshot.data.user.email.isEmpty ? 'Корисникот нема внесено е-пошта' : snapshot.data.user.email,
-                      ),
-                      currentAccountPicture: Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          image: DecorationImage(
-                            image: NetworkImage(
-                              snapshot.data.avatar,
-                            ),
-                            fit: BoxFit.cover,
-                          ),
-                          borderRadius: BorderRadius.all(
-                              Radius.circular(50)
-                          ),
+                UserAccountsDrawerHeader(
+                  accountName: Text(
+                    _user == null ? '' : _user.user.firstName.isEmpty ? _user.user.lastName.isEmpty ? _user.user.username : _user.user.lastName : _user.user.firstName + ' ' + _user.user.lastName,
+                  ),
+                  accountEmail: Text(
+                    _user == null ? '' : _user.user.email.isEmpty ? 'Корисникот нема внесено е-пошта' : _user.user.email,
+                  ),
+                  currentAccountPicture: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: NetworkImage(
+                          _user == null ? '' : _user.avatar,
                         ),
+                        fit: BoxFit.cover,
                       ),
-                    );
-                  }
+                      borderRadius: BorderRadius.all(
+                          Radius.circular(50)
+                      ),
+                    ),
+                  ),
                 ),
                 DrawerItem(
                   text: 'Сметка',
@@ -289,6 +320,9 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    /*
+     * Call dispose to get rid of streams/connections 
+     */
     super.dispose();
     _userBloc?.dispose();
     _topicsBloc?.dispose();
@@ -298,6 +332,9 @@ class _HomePageState extends State<HomePage> {
 
 class PostSearch extends SearchDelegate<String> {
   PostSearch() {
+    /*
+     * Fetch all suggestions on start
+     */
     _doFetchPostSuggestions();
   }
 
@@ -305,6 +342,9 @@ class PostSearch extends SearchDelegate<String> {
 
   @override
   List<Widget> buildActions(BuildContext context) {
+    /*
+     * Build actions view 
+     */
     return [
       IconButton(
         icon: AnimatedIcon(
@@ -320,6 +360,9 @@ class PostSearch extends SearchDelegate<String> {
 
   @override
   Widget buildLeading(BuildContext context) {
+    /*
+     * Build leading view 
+     */
     return IconButton(
       icon: AnimatedIcon(
         icon: AnimatedIcons.menu_arrow,
@@ -333,12 +376,18 @@ class PostSearch extends SearchDelegate<String> {
 
   @override
   Widget buildResults(BuildContext context) {
+    /*
+     * Close the delegate and return the provided query
+     */
     close(context, query);
     return ListView();
   }
 
   @override
   Widget buildSuggestions(BuildContext context) {
+    /*
+     * Build the suggestions based on the query 
+     */
     var filteredSuggestions = _suggestions
         .where((suggestion) => suggestion.toLowerCase().contains(query.toLowerCase()))
         .toList();
@@ -359,6 +408,10 @@ class PostSearch extends SearchDelegate<String> {
   }
 
   _doFetchPostSuggestions() async {
+    /*
+     * Fetch the suggestions from database
+     * Add them to the suggestions list of the delegate
+     */
     var response = await http.get(
       Uri.encodeFull(Client.client + 'api/posts/suggestions'),
       headers: {
@@ -378,6 +431,9 @@ class PostSearch extends SearchDelegate<String> {
   }
 
   _onSuggestion(String suggestion) {
+    /*
+     * Once a suggestion is clicked change the query 
+     */
     query = suggestion;
   }
 }

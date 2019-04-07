@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 part 'auth.g.dart';
 
 class Client {
-  static String client = 'http://192.168.1.125:80/';
+  static String client = 'http://192.168.1.124:80/';
 }
 
 @JsonSerializable()

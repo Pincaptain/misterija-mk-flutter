@@ -6,7 +6,9 @@ part 'users.g.dart';
 class User extends Object {
   final int pk;
   final String username;
+  @JsonKey(name: 'first_name')
   final String firstName;
+  @JsonKey(name: 'last_name')
   final String lastName;
 
   User(this.pk, this.username, this.firstName, this.lastName);
@@ -21,7 +23,9 @@ class CurrentUser extends Object {
   final int pk;
   final String username;
   final String email;
+  @JsonKey(name: 'first_name')
   final String firstName;
+  @JsonKey(name: 'last_name')
   final String lastName;
 
   CurrentUser(this.pk, this.username, this.email, this.firstName, this.lastName);

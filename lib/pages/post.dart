@@ -116,8 +116,11 @@ class _PostPageState extends State<PostPage>  {
     }
   }
 
-  _onFeedback() {
-
+  _onFeedback() async {
+    const url = 'mailto:borjan.gjorovski@outlook.com?subject=Feedback&body=Feedback';
+    if (await canLaunch(url)) {
+      await launch(url);
+    }
   }
 
   _onComment(term) async {
