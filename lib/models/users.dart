@@ -1,4 +1,9 @@
-class User {
+import 'package:json_annotation/json_annotation.dart';
+
+part 'users.g.dart';
+
+@JsonSerializable()
+class User extends Object {
   final int pk;
   final String username;
   final String firstName;
@@ -6,17 +11,13 @@ class User {
 
   User(this.pk, this.username, this.firstName, this.lastName);
 
-  factory User.fromJson(Map<String, dynamic> json) {
-    return User(
-      json['pk'],
-      json['username'],
-      json['first_name'],
-      json['last_name'],
-    );
-  }
+  factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
+
+  Map<String, dynamic> toJson() => _$UserToJson(this);
 }
 
-class CurrentUser {
+@JsonSerializable()
+class CurrentUser extends Object {
   final int pk;
   final String username;
   final String email;
@@ -25,18 +26,14 @@ class CurrentUser {
 
   CurrentUser(this.pk, this.username, this.email, this.firstName, this.lastName);
 
-  factory CurrentUser.fromJson(Map<String, dynamic> json) {
-    return CurrentUser(
-      json['pk'],
-      json['username'],
-      json['email'],
-      json['first_name'],
-      json['last_name'],
-    );
-  }
+  factory CurrentUser.fromJson(Map<String, dynamic> json) =>
+      _$CurrentUserFromJson(json);
+
+  Map<String, dynamic> toJson() => _$CurrentUserToJson(this);
 }
 
-class Profile {
+@JsonSerializable()
+class Profile extends Object {
   final int pk;
   final String bio;
   final String location;
@@ -45,18 +42,14 @@ class Profile {
 
   Profile(this.pk, this.bio, this.location, this.avatar, this.user);
 
-  factory Profile.fromJson(Map<String, dynamic> json) {
-    return Profile(
-      json['pk'],
-      json['bio'],
-      json['location'],
-      json['avatar'],
-      User.fromJson(json['user']),
-    );
-  }
+  factory Profile.fromJson(Map<String, dynamic> json) =>
+      _$ProfileFromJson(json);
+
+  Map<String, dynamic> toJson() => _$ProfileToJson(this);
 }
 
-class CurrentProfile {
+@JsonSerializable()
+class CurrentProfile extends Object {
   final int pk;
   final String bio;
   final String location;
@@ -65,13 +58,8 @@ class CurrentProfile {
 
   CurrentProfile(this.pk, this.bio, this.location, this.avatar, this.user);
 
-  factory CurrentProfile.fromJson(Map<String, dynamic> json) {
-    return CurrentProfile(
-      json['pk'],
-      json['bio'],
-      json['location'],
-      json['avatar'],
-      CurrentUser.fromJson(json['user']),
-    );
-  }
+  factory CurrentProfile.fromJson(Map<String, dynamic> json) =>
+      _$CurrentProfileFromJson(json);
+
+  Map<String, dynamic> toJson() => _$CurrentProfileToJson(this);
 }

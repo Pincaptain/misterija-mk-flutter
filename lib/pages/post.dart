@@ -1,24 +1,65 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
-import 'package:carousel_slider/carousel_slider.dart';
 import 'package:percent_indicator/percent_indicator.dart';
+import 'package:http/http.dart' as http;
+import 'package:flushbar/flushbar.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'package:misterija_mk/models/core.dart';
+import 'package:misterija_mk/models/auth.dart';
+import 'package:misterija_mk/widgets/core.dart';
 
 class PostPage extends StatefulWidget {
+  PostPage({@required this.post});
+
+  final Post post;
+
   @override
-  State<StatefulWidget> createState() => _PostPageState();
+  State<StatefulWidget> createState() => _PostPageState(post);
 }
 
-class _PostPageState extends State<PostPage> {
-  List<PopupMenuItem<int>> _popupMenuItems;
+class _PostPageState extends State<PostPage>  {
+  _PostPageState(this.post);
+
+  final Post post;
+  Post _post;
 
   bool _areCommentsVisible;
 
+  String _comment;
+
   final _commentFormKey = GlobalKey<FormState>();
 
-  _PostPageState() {
-    makePopupMenuItems();
+  @override
+  @mustCallSuper
+  void initState() {
+    super.initState();
+    _setCommentsVisibility(true);
+    _doFetchDetailPost();
+  }
 
-    _areCommentsVisible = true;
+  makeDetailPostDifficultyColor(difficulty) {
+    return Color.lerp(Colors.green, Colors.red, difficulty);
+  }
+
+  makeDetailPostDifficultyName(difficulty) {
+    if (difficulty <= 0.2) {
+      return 'Едноставна тежина';
+    } else if (difficulty <= 0.5) {
+      return 'Средна тежина';
+    } else if (difficulty <= 0.75) {
+      return 'Жешка тежина';
+    } else {
+      return 'Пеколна тежина';
+    }
+  }
+
+  _setCommentsVisibility(bool visible) {
+    setState(() {
+      _areCommentsVisible = visible;
+    });
   }
 
   _changeCommentsVisibility() {
@@ -27,143 +68,139 @@ class _PostPageState extends State<PostPage> {
     });
   }
 
-  makePostComment(imageUrl, name, date, votes, comment) {
-    return Card(
-      elevation: 0.0,
-      color: Colors.white12,
-      child: Column(
-        children: <Widget>[
-          Container(
-            child: ListTile(
-              leading: Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: NetworkImage(
-                      imageUrl,
-                    ),
-                    fit: BoxFit.cover,
-                  ),
-                  borderRadius: BorderRadius.all(
-                      Radius.circular(50)
-                  )
-                ),
-              ),
-              title: Text(
-                name,
-                style: TextStyle(
-                  color: Colors.white,
-                ),
-              ),
-              subtitle: Text(
-                date,
-                style: TextStyle(
-                  color: Colors.white70,
-                ),
-              ),
-              trailing: Column(
-                children: <Widget>[
-                  IconButton(
-                    icon: Icon(
-                      Icons.thumb_up,
-                      color: Colors.white,
-                    ),
-                    onPressed: () {},
-                    tooltip: 'Гласај',
-                  ),
-                  Text(
-                    votes,
-                    style: TextStyle(
-                      color: Colors.white70,
-                    ),
-                  )
-                ],
-              ),
-            ),
-          ),
-          Container(
-            margin: EdgeInsets.symmetric(
-              vertical: 10.0,
-              horizontal: 10.0,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  comment,
-                  style: TextStyle(
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          )
-        ],
-      ),
+  _doFetchDetailPost() async {
+    var response = await http.get(
+      Uri.encodeFull(Client.client + 'api/posts/' + post.pk.toString() + '/'),
+      headers: {
+        'Accept': 'application/json',
+      },
     );
+
+    if (response.statusCode != 200) {
+      Flushbar(
+        messageText: Text(
+          'Неочекуван проблем! Ве молиме рестартирајте ја апликацијата.',
+          style: TextStyle(
+            color: Colors.white,
+          ),
+        ),
+        duration: Duration(
+          seconds: 3,
+        ),
+      ).show(context);
+
+      return false;
+    }
+
+    var jsonString = utf8.decode(response.bodyBytes);
+    var jsonBody = json.decode(jsonString);
+
+    setState(() {
+      _post = Post.fromJson(jsonBody);
+    });
+
+    return true;
   }
 
-  makePopupMenuItems() {
-    _popupMenuItems = [
-      PopupMenuItem(
-        value: 0,
-        child: Row(
-          children: <Widget>[
-            Container(
-              child: Icon(
-                Icons.share,
-                color: Colors.white,
-              ),
-              margin: EdgeInsets.only(
-                right: 10.0,
-              ),
+  _onSettings(int value) {
+    switch (value) {
+      case 0:
+        launch(Client.client + 'api/posts/' + _post.pk.toString() + '/');
+        break;
+      case 1:
+        launch('https://www.riddles.com/');
+        break;
+      case 2:
+
+        break;
+    }
+  }
+
+  _onFeedback() {
+
+  }
+
+  _onComment(term) async {
+    if (_commentFormKey.currentState.validate()) {
+      _commentFormKey.currentState.save();
+      var createPostComment = CreateComment(_comment, _post.pk);
+
+      var response = await http.post(
+        Uri.encodeFull(Client.client + 'api/posts/comments/create/'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': Token.toHeader(),
+        },
+        body: json.encode(createPostComment.toJson()),
+      );
+
+      if (response.statusCode != 201) {
+        Flushbar(
+          messageText: Text(
+            'Неочекуван проблем! Ве молиме рестартирајте ја апликацијата.',
+            style: TextStyle(
+              color: Colors.white,
             ),
-            Text(
-                'Сподели'
-            )
-          ],
+          ),
+          duration: Duration(
+            seconds: 3,
+          ),
+        ).show(context);
+
+        return false;
+      }
+
+      _commentFormKey.currentState.reset();
+      _doFetchDetailPost();
+
+      return true;
+    }
+  }
+
+  _onVote(Comment postComment, int index) async {
+    var response = await http.get(
+      Uri.encodeFull(Client.client + 'api/posts/comments/vote/${postComment.pk.toString()}/'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': Token.toHeader(),
+      }
+    );
+
+    if (response.statusCode != 200) {
+      Flushbar(
+        messageText: Text(
+          'Неочекуван проблем! Ве молиме рестартирајте ја апликацијата.',
+          style: TextStyle(
+            color: Colors.white,
+          ),
         ),
-      ),
-      PopupMenuItem(
-        value: 1,
-        child: Row(
-          children: <Widget>[
-            Container(
-              child: Icon(
-                Icons.open_in_browser,
-                color: Colors.white,
-              ),
-              margin: EdgeInsets.only(
-                right: 10.0,
-              ),
-            ),
-            Text(
-                'Извор'
-            )
-          ],
+        duration: Duration(
+          seconds: 3,
         ),
-      ),
-      PopupMenuItem(
-        value: 2,
-        child: Row(
-          children: <Widget>[
-            Container(
-              child: Icon(
-                Icons.help_outline,
-                color: Colors.white,
-              ),
-              margin: EdgeInsets.only(
-                right: 10.0,
-              ),
-            ),
-            Text(
-                'Решение'
-            )
-          ],
-        ),
-      ),
-    ];
+      ).show(context);
+
+      return false;
+    }
+
+    var jsonString = utf8.decode(response.bodyBytes);
+    var jsonBody = json.decode(jsonString);
+    var newPostComment = Comment.fromJson(jsonBody);
+    var modifiedPostComment = Comment(postComment.pk, postComment.comment, postComment.added, postComment.profile, newPostComment.selected, newPostComment.votesCount);
+
+    setState(() {
+      _post.comments[index] = modifiedPostComment;
+    });
+
+    return true;
+  }
+
+  _onDelete(Comment postComment, int index) async {
+
+  }
+
+  _onEdit(Comment postComment, int index) async {
+
   }
 
   @override
@@ -175,7 +212,7 @@ class _PostPageState extends State<PostPage> {
         title: Row(
           children: <Widget>[
             Text(
-              'Натпревар',
+              _post == null ? post.title : _post.title,
               style: TextStyle(
                 color: Colors.white,
               ),
@@ -200,49 +237,78 @@ class _PostPageState extends State<PostPage> {
               ),
             ),
             child: PopupMenuButton(
+              onSelected: _onSettings,
               tooltip: 'Прикажи мени',
               itemBuilder: (context) {
-                return _popupMenuItems;
+                return [
+                  PopupMenuItem(
+                    value: 0,
+                    child: Row(
+                      children: <Widget>[
+                        Container(
+                          child: Icon(
+                            Icons.share,
+                            color: Colors.white,
+                          ),
+                          margin: EdgeInsets.only(
+                            right: 10.0,
+                          ),
+                        ),
+                        Text(
+                          'Сподели'
+                        )
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 1,
+                    child: Row(
+                      children: <Widget>[
+                        Container(
+                          child: Icon(
+                            Icons.open_in_browser,
+                            color: Colors.white,
+                          ),
+                          margin: EdgeInsets.only(
+                            right: 10.0,
+                          ),
+                        ),
+                        Text(
+                          'Извор'
+                        )
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 2,
+                    child: Row(
+                      children: <Widget>[
+                        Container(
+                          child: Icon(
+                            Icons.help_outline,
+                            color: Colors.white,
+                          ),
+                          margin: EdgeInsets.only(
+                            right: 10.0,
+                          ),
+                        ),
+                        Text(
+                          'Решение'
+                        )
+                      ],
+                    ),
+                  ),
+                ];
               },
             ),
           ),
         ],
       ),
-      body: SingleChildScrollView(
+      body: _post == null ? Container() : SingleChildScrollView(
         child: Column(
           children: <Widget>[
-            Container(
-              margin: EdgeInsets.symmetric(vertical: 6.0),
-              child: CarouselSlider(
-                enlargeCenterPage: true,
-                height: 200.0,
-                items: [
-                  'http://images6.fanpop.com/image/photos/40400000/Sheep-sheep-40487480-2560-1600.png',
-                  'https://i.pinimg.com/originals/da/23/ef/da23ef5b4dad13a238d466d16dee4d01.png',
-                  'https://i.imgur.com/FZwh6nb.jpg'
-                ].map((image) {
-                  return Builder(
-                    builder: (BuildContext context) {
-                      return Container(
-                        width: MediaQuery.of(context).size.width,
-                        margin: EdgeInsets.symmetric(horizontal: 5.0),
-                        decoration: BoxDecoration(
-                          color: Colors.white12,
-                          image: DecorationImage(
-                            image: NetworkImage(
-                              image,
-                            ),
-                            fit: BoxFit.fill,
-                          ),
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(10.0),
-                          )
-                        ),
-                      );
-                    },
-                  );
-                }).toList(),
-              ),
+            PostImagesCarouselSlider(
+              postImages: _post.images,
             ),
             Center(
               child: Container(
@@ -254,8 +320,8 @@ class _PostPageState extends State<PostPage> {
                 child: LinearPercentIndicator(
                   width: MediaQuery.of(context).size.width - 20,
                   lineHeight: 7.0,
-                  percent: 0.5,
-                  progressColor: Colors.yellow,
+                  percent: _post.difficulty,
+                  progressColor: makeDetailPostDifficultyColor(_post.difficulty),
                   backgroundColor: Colors.white12,
                 ),
               ),
@@ -274,7 +340,7 @@ class _PostPageState extends State<PostPage> {
                       decoration: BoxDecoration(
                         image: DecorationImage(
                           image: NetworkImage(
-                            'https://icons-for-free.com/free-icons/png/512/2754575.png',
+                            _post.author.avatar,
                           ),
                           fit: BoxFit.cover,
                         ),
@@ -284,13 +350,13 @@ class _PostPageState extends State<PostPage> {
                       ),
                     ),
                     title: Text(
-                      'Борјан Ѓоровски',
+                      _post.author.user.firstName.isEmpty ? _post.author.user.lastName.isEmpty ? _post.author.user.username : _post.author.user.lastName : _post.author.user.firstName + ' ' + _post.author.user.lastName,
                       style: TextStyle(
                         color: Colors.white,
                       ),
                     ),
                     subtitle: Text(
-                      '21:30 14.03.2019',
+                      _post.added.toString(),
                       style: TextStyle(
                         color: Colors.white70,
                       ),
@@ -301,7 +367,7 @@ class _PostPageState extends State<PostPage> {
                         Icons.feedback,
                         color: Colors.white,
                       ),
-                      onPressed: () {},
+                      onPressed: _onFeedback,
                     ),
                   ),
                 ),
@@ -319,6 +385,7 @@ class _PostPageState extends State<PostPage> {
                   elevation: 0.0,
                   color: Colors.white12,
                   child: Container(
+                    width: double.infinity,
                     padding: EdgeInsets.all(10.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,7 +395,7 @@ class _PostPageState extends State<PostPage> {
                             bottom: 10.0,
                           ),
                           child: Text(
-                            'Натпревар',
+                            _post.title,
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 24,
@@ -336,7 +403,7 @@ class _PostPageState extends State<PostPage> {
                           ),
                         ),
                         Text(
-                          'Арно сторил тој што ти го зел клопчето, ќерко, ѝ рекла, оти од узур ќе ми везеш црна кошула, сосила ќе ми се правиш ти вдовица; Силјан ни е на аџилак со дуовникот, а пак ти сосила сакаш да умре и да не дојде; гревота е, а ќерко, ова ти што го правиш; моли Бога за Господ да ни го донесе, не туку плачеш и жалиш. Ете некни ѓерданчето на Босилка ѝ загина; не е човечка глава да, човек умира и никому ништо, а ќерко, а не ти оти едно клопче ти загинало и да плачеш.',
+                          _post.description,
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -385,7 +452,7 @@ class _PostPageState extends State<PostPage> {
                             ),
                           ),
                           subtitle: Text(
-                            '523',
+                            _post.comments.length.toString(),
                             style: TextStyle(
                               color: Colors.white70,
                             ),
@@ -407,12 +474,15 @@ class _PostPageState extends State<PostPage> {
                                 validator: (input) {
                                   return input.isEmpty ? 'Празен одговор нема да се прифати' : null;
                                 },
+                                onSaved: (input) {
+                                  setState(() {
+                                    _comment = input;
+                                  });
+                                },
                                 textInputAction: TextInputAction.send,
                                 keyboardType: TextInputType.multiline,
                                 maxLines: null,
-                                onFieldSubmitted: (input) {
-                                  if (_commentFormKey.currentState.validate()) {}
-                                },
+                                onFieldSubmitted: _onComment,
                                 style: TextStyle(
                                   color: Colors.white,
                                 ),
@@ -448,16 +518,19 @@ class _PostPageState extends State<PostPage> {
                   left: 6.0,
                   right: 6.0,
                 ),
-                  child: Column(
-                    children: <Widget>[
-                      makePostComment('https://cdn3.iconfinder.com/data/icons/business-avatar-1/512/3_avatar-512.png', 'Мирослав Мисузо', '21:34 14.03.2019', '233', 'Ова е рандом комент текст којшто треба да биде огромен. Ако не расте повеќе од нормалата ќе биде јајце на велигден.'),
-                      makePostComment('https://cdn3.iconfinder.com/data/icons/business-avatar-1/512/4_avatar-512.png', 'Меланија Кокс', '22:47 14.03.2019', '23', 'Без разлика на класификацијата информациите се исти. Тоа како ти ќе си ги наредиш во главата е твоја работа. Не ме мешај мене и моиве.'),
-                      makePostComment('https://cdn3.iconfinder.com/data/icons/business-avatar-1/512/2_avatar-512.png', 'Игор Мишуковски', '16:27 15.03.2019', '11', 'Очигледно е дека ова е првиот пат. Незаинтересираност, непослушност, незнаење се само дел од карактеристиките кои ги карактеризираат нив.'),
-                    ],
-                  ),
+                height: _post.comments.length * 116 * 1.0,
+                child: ListView.builder(
+                  itemCount: _post.comments.length,
+                  itemBuilder: (context, index) {
+                    return PostCommentCard(
+                      postComment: _post.comments[index],
+                      onVote: () => _onVote(_post.comments[index], index),
+                    );
+                  },
+                ),
                 ),
               visible: _areCommentsVisible,
-            )
+            ),
           ],
         ),
       ),

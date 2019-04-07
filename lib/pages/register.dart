@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:flushbar/flushbar.dart';
-import 'package:http/http.dart' as http;
 
-import 'package:misterija_mk/widgets/authentication.dart';
-import 'package:misterija_mk/models/authentication.dart';
+import 'package:misterija_mk/blocs/register_bloc.dart';
 import 'package:misterija_mk/pages/login.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -12,189 +10,242 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  final _registerForm = GlobalKey<FormState>();
+  // Business login component for register page
+  final _registerBloc = RegisterBloc();
 
-  final _usernameFocus = FocusNode();
-  final _emailFocus = FocusNode();
-  final _passwordFocus = FocusNode();
-
-  Flushbar _loadingFlushbar;
-
-  String _username;
-  String _email;
-  String _password;
-
-  bool _isRegisterDisabled = false;
-
-  String validateUsername(input) {
-    return input.isEmpty ? 'Внесете го вашето корисничко име' : null;
+  @mustCallSuper
+  @override
+  initState() {
+    super.initState();
+    _onRegisterResult();
   }
 
-  String validateEmail(input) {
-    var regExp = new RegExp(r'^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$');
-    return regExp.hasMatch(input) ? null : 'Внесената е-пошта не е валидна';
-  }
-
-  String validatePassword(input) {
-    return input.isEmpty ? 'Внесете ја вашата лозинка' : null;
-  }
-
-  _setUsername(input) {
-    setState(() {
-      _username = input;
-    });
-  }
-
-  _setEmail(input) {
-    setState(() {
-      _email = input;
-    });
-  }
-
-  _setPassword(input) {
-    setState(() {
-      _password = input;
-    });
-  }
-
-  _setRegisterDisabled(bool disable) {
-    setState(() {
-      _isRegisterDisabled = disable;
-    });
-  }
-
-  _onRegister() {
-    if (_registerForm.currentState.validate()) {
-      _registerForm.currentState.save();
-
-      if (_loadingFlushbar == null) {
-        _setRegisterDisabled(true);
-
-        _loadingFlushbar = Flushbar(
-          message: 'Податоците се валидираат',
-          backgroundColor: Colors.white12,
-          showProgressIndicator: true,
-        );
-        _loadingFlushbar.show(context);
-
-        _doRegister().then((value) {
-          _setRegisterDisabled(false);
-          _loadingFlushbar.dismiss();
-          _loadingFlushbar = null;
-
-          if (value) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => LoginPage(true),
-              ),
-            );
-          }
-        });
+  _onRegisterResult() {
+    /*
+     * Listen for register results
+     * If register result successful redirect to login screen
+     * If register result failed show flushbar with specific error message 
+     */
+    _registerBloc.register.listen((result) {
+      if (result == RegisterResult.UnexpectedError) {
+        Flushbar(
+          message: 'Дојде до неочекуван проблем. Обидете се повторно.',
+          duration: Duration(seconds: 3),
+        ).show(context);
+      } else if (result == RegisterResult.InvalidCredentials) {
+        Flushbar(
+          message: 'Внесените податоци не се валидни или се веќе искористени.'
+              ' Обидете се повторно.',
+          duration: Duration(seconds: 3),
+        ).show(context);
+      } else {
+        Navigator.of(context)
+            .push(MaterialPageRoute(builder: (context) => LoginPage()));
       }
-    }
-  }
-
-  Future<bool> _doRegister() async {
-    var data = Register(_username, _email, _password);
-    var response = await http.post(
-      Uri.encodeFull(Client.client + 'api/users/register/'),
-      headers: {
-        'Accept': 'application/json',
-      },
-      body: data.toJson(),
-    );
-
-    if (response.statusCode != 201) {
-      Flushbar(
-        messageText: Text(
-          'Внесените информации не се валидни или веќе постои корисник со тоа име.',
-          style: TextStyle(
-            color: Colors.white,
-          ),
-        ),
-        duration: Duration(
-          seconds: 3,
-        ),
-        backgroundColor: Colors.white12,
-      ).show(context);
-
-      return false;
-    }
-
-    return true;
+    });
   }
 
   _onLogin() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => LoginPage(false),
+    /*
+     * Redirect to login page 
+     */
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (context) => LoginPage()));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    /*
+     * Build the register page view 
+     */
+    return Scaffold(
+      backgroundColor: Colors.blueGrey,
+      body: Center(
+        child: ListView(
+          padding: EdgeInsets.symmetric(
+            horizontal: 24.0,
+          ),
+          children: <Widget>[
+            SizedBox(
+              height: 48.0,
+            ),
+            StreamBuilder<String>(
+              stream: _registerBloc.username,
+              builder: (BuildContext context, AsyncSnapshot snapshot) {
+                return TextField(
+                  onChanged: _registerBloc.onUsernameChanged,
+                  textInputAction: TextInputAction.done,
+                  style: TextStyle(
+                    color: Colors.white,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Корисничко име',
+                    hintStyle: TextStyle(
+                      color: Colors.white,
+                    ),
+                    errorText: snapshot.error,
+                    contentPadding: EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 10.0),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(32.0),
+                      borderSide: BorderSide(
+                        color: Colors.white,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(32.0),
+                      borderSide: BorderSide(
+                        color: Colors.white,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(32.0),
+                      borderSide: BorderSide(
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+            SizedBox(
+              height: 8.0,
+            ),
+            StreamBuilder<String>(
+              stream: _registerBloc.email,
+              builder: (context, snapshot) {
+                return TextField(
+                  onChanged: _registerBloc.onEmailChanged,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.done,
+                  style: TextStyle(
+                    color: Colors.white,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Е-пошта',
+                    hintStyle: TextStyle(
+                      color: Colors.white,
+                    ),
+                    errorText: snapshot.error,
+                    contentPadding: EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 10.0),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(32.0),
+                      borderSide: BorderSide(
+                        color: Colors.white,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(32.0),
+                      borderSide: BorderSide(
+                        color: Colors.white,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(32.0),
+                      borderSide: BorderSide(
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                );
+              }
+            ),
+            SizedBox(
+              height: 8.0,
+            ),
+            StreamBuilder<String>(
+              stream: _registerBloc.password,
+              builder: (context, snapshot) {
+                return TextField(
+                  onChanged: _registerBloc.onPasswordChanged,
+                  textInputAction: TextInputAction.done,
+                  obscureText: true,
+                  style: TextStyle(
+                    color: Colors.white,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Лозинка',
+                    hintStyle: TextStyle(
+                      color: Colors.white,
+                    ),
+                    errorText: snapshot.error,
+                    contentPadding: EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 10.0),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(32.0),
+                      borderSide: BorderSide(
+                        color: Colors.white,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(32.0),
+                      borderSide: BorderSide(
+                        color: Colors.white,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(32.0),
+                      borderSide: BorderSide(
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                );
+              }
+            ),
+            SizedBox(
+              height: 24.0,
+            ),
+            StreamBuilder<bool>(
+              stream: _registerBloc.validate,
+              builder: (context, snapshot) {
+                return RaisedButton(
+                  onPressed: snapshot.data != null ? _registerBloc.onRegister : null,
+                  color: Colors.white12,
+                  elevation: 0.0,
+                  highlightElevation: 0.0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30.0),
+                    side: BorderSide(
+                      color: Colors.white,
+                    ),
+                  ),
+                  child: Text(
+                    'Регистрирај се',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                    ),
+                  ),
+                );
+              }
+            ),
+            RaisedButton(
+              onPressed: _onLogin,
+              color: Colors.blueGrey,
+              elevation: 0.0,
+              highlightElevation: 0.0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30.0),
+              ),
+              child: Text(
+                'Најави се',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.blueGrey,
-      body: Center(
-        child: Form(
-          key: _registerForm,
-          child: ListView(
-            shrinkWrap: true,
-            padding: EdgeInsets.symmetric(
-              horizontal: 24.0,
-            ),
-            children: <Widget>[
-              SizedBox(
-                height: 48.0,
-              ),
-              UsernameForm(
-                validator: validateUsername,
-                onSaved: _setUsername,
-                focusNode: _usernameFocus,
-                onFieldSubmitted: (input) {
-                  _usernameFocus.unfocus();
-                  FocusScope.of(context).requestFocus(_emailFocus);
-                },
-              ),
-              SizedBox(
-                height: 8.0,
-              ),
-              EmailForm(
-                validator: validateEmail,
-                onSaved: _setEmail,
-                focusNode: _emailFocus,
-                onFieldSubmitted: (input) {
-                  _emailFocus.unfocus();
-                  FocusScope.of(context).requestFocus(_passwordFocus);
-                },
-              ),
-              SizedBox(
-                height: 8.0,
-              ),
-              PasswordForm(
-                validator: validatePassword,
-                onSaved: _setPassword,
-                focusNode: _passwordFocus,
-                onFieldSubmitted: (input) {
-                  _passwordFocus.unfocus();
-                },
-              ),
-              SizedBox(
-                height: 24.0,
-              ),
-              RegisterButton(
-                onPressed: _isRegisterDisabled ? null : _onRegister,
-              ),
-              MaybeLoginButton(
-                onPressed: _onLogin,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  void dispose() {
+    /*
+     * Override dispose to close streams and connections
+     */
+    super.dispose();
+    _registerBloc.dispose();
   }
 }

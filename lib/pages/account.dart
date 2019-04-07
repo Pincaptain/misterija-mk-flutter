@@ -8,6 +8,9 @@ class AccountPage extends StatefulWidget {
 class _AccountPageState extends State<AccountPage> {
   @override
   Widget build(BuildContext context) {
+    /*
+     * Build account page view 
+     */
     return Scaffold(
       backgroundColor: Colors.blueGrey,
     );

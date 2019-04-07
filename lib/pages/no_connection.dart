@@ -1,11 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import 'package:flare_flutter/flare_actor.dart';
-import 'package:connectivity/connectivity.dart';
 
 import 'splash.dart';
+import 'package:misterija_mk/blocs/no_connection_bloc.dart';
 
 class NoConnectionPage extends StatefulWidget {
   @override
@@ -13,26 +11,29 @@ class NoConnectionPage extends StatefulWidget {
 }
 
 class _NoConnectionPageState extends State<NoConnectionPage> {
-  StreamSubscription<ConnectivityResult> _connectionSubscription;
+  // Business logic component for no connection page
+  final _noConnectionBloc = NoConnectionBloc();
 
   @override
   @mustCallSuper
   void initState() {
     super.initState();
-    _connectionSubscription = Connectivity().onConnectivityChanged.listen(_onConnectionChanged);
+    _onConnectivityChanged();
   }
 
-  _onConnectionChanged(ConnectivityResult result) {
-    if (result != ConnectivityResult.none) {
-      _connectionSubscription.cancel();
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (context) => SplashPage()
-        ),
-      );
-    }
+  _onConnectivityChanged() {
+    /*
+     * Listen on connection changes
+     * If connectivity returns true redirects to splash
+     * Else it waits / does nothing
+     */
+    _noConnectionBloc.outConnectivity.listen((isConnected) {
+      if (isConnected) {
+        Navigator
+            .of(context)
+            .push(MaterialPageRoute(builder: (context) => SplashPage()));
+      }
+    });
   }
 
   @override
@@ -57,5 +58,14 @@ class _NoConnectionPageState extends State<NoConnectionPage> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    /*
+     * Override dispose to close streams and connections
+     */
+    super.dispose();
+    _noConnectionBloc.dispose();
   }
 }

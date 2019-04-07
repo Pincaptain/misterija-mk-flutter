@@ -4,18 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:http/http.dart' as http;
-import 'package:flushbar/flushbar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:misterija_mk/models/users.dart';
-import 'package:misterija_mk/models/authentication.dart';
-import 'package:misterija_mk/models/posts.dart';
-import 'package:misterija_mk/widgets/users.dart';
-import 'package:misterija_mk/widgets/posts.dart';
+import 'package:misterija_mk/models/auth.dart';
+import 'package:misterija_mk/models/core.dart';
+import 'package:misterija_mk/widgets/core.dart';
 import 'package:misterija_mk/widgets/general.dart';
 import 'package:misterija_mk/pages/login.dart';
 import 'package:misterija_mk/pages/settings.dart';
 import 'package:misterija_mk/pages/account.dart';
+import 'package:misterija_mk/blocs/user_bloc.dart';
+import 'package:misterija_mk/blocs/topics_bloc.dart';
+import 'package:misterija_mk/blocs/posts_bloc.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -23,236 +24,32 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  UserBloc _userBloc = UserBloc();
+  TopicsBloc _topicsBloc = TopicsBloc();
+  PostsBloc _postsBloc = new PostsBloc();
+
   _HomePageState() {
     SystemChrome.setEnabledSystemUIOverlays(SystemUiOverlay.values);
   }
-
-  CurrentProfile _currentProfile;
-
-  List<PostTopic> _postTopics = List<PostTopic>();
-  List<Post> _posts = List<Post>();
 
   @protected
   @mustCallSuper
   initState() {
     super.initState();
-    _doFetchCurrentProfile();
-    _doFetchPostTopics();
-    _doFetchPosts();
-  }
-
-  Future<bool> _doFetchCurrentProfile() async {
-    var response = await http.get(
-      Uri.encodeFull(Client.client + 'api/users/profiles/current/'),
-      headers: {
-        'Authorization': Token.toHeader(),
-        'Accept': 'application/json',
-      }
-    );
-
-    if (response.statusCode != 200) {
-      Flushbar(
-        messageText: Text(
-          'Неочекуван проблем! Ве молиме рестартирајте ја апликацијата.',
-          style: TextStyle(
-            color: Colors.white,
-          ),
-        ),
-        duration: Duration(
-          seconds: 3,
-        ),
-      ).show(context);
-
-      return false;
-    }
-
-    var jsonString = response.body;
-    var jsonData = json.decode(jsonString);
-
-    setState(() {
-      _currentProfile = CurrentProfile.fromJson(jsonData);
-    });
-
-    return true;
-  }
-
-  Future<bool> _doFetchPostTopics() async {
-    var response = await http.get(
-      Uri.encodeFull(Client.client + 'api/posts/topics/'),
-      headers: {
-        'Accept': 'application/json',
-      },
-    );
-
-    if (response.statusCode != 200) {
-      Flushbar(
-        messageText: Text(
-          'Неочекуван проблем! Ве молиме рестартирајте ја апликацијата.',
-          style: TextStyle(
-            color: Colors.white,
-          ),
-        ),
-        duration: Duration(
-          seconds: 3,
-        ),
-      ).show(context);
-
-      return false;
-    }
-
-    var jsonString = utf8.decode(response.bodyBytes);
-    var jsonBody = json.decode(jsonString);
-    var postTopicsList = List<PostTopic>();
-
-    for (var child in jsonBody) {
-      postTopicsList.add(PostTopic.fromJson(child));
-    }
-
-    setState(() {
-      _postTopics = postTopicsList;
-    });
-
-    return true;
-  }
-
-  Future<bool> _doFetchPosts() async {
-    var response = await http.get(
-      Uri.encodeFull(Client.client + 'api/posts/'),
-      headers: {
-        'Accept': 'application/json',
-      },
-    );
-
-    if (response.statusCode != 200) {
-      Flushbar(
-        messageText: Text(
-          'Неочекуван проблем! Ве молиме рестартирајте ја апликацијата.',
-          style: TextStyle(
-            color: Colors.white,
-          ),
-        ),
-        duration: Duration(
-          seconds: 3,
-        ),
-      ).show(context);
-
-      return false;
-    }
-
-    var jsonString = utf8.decode(response.bodyBytes);
-    var jsonBody = json.decode(jsonString);
-    var postsList = List<Post>();
-
-    for (var child in jsonBody) {
-      postsList.add(Post.fromJson(child));
-    }
-
-    setState(() {
-      _posts = postsList;
-    });
-
-    return true;
-  }
-
-  Future<bool> _doFetchPostsByTopic(PostTopic postTopic) async {
-    var response = await http.get(
-      Uri.encodeFull(Client.client + 'api/posts/filter/?topic=' + postTopic.pk.toString()
-      ),
-      headers: {
-        'Accept': 'application/json',
-      },
-    );
-
-    if (response.statusCode != 200) {
-      Flushbar(
-        messageText: Text(
-          'Неочекуван проблем! Ве молиме рестартирајте ја апликацијата.',
-          style: TextStyle(
-            color: Colors.white,
-          ),
-        ),
-        duration: Duration(
-          seconds: 3,
-        ),
-      ).show(context);
-
-      return false;
-    }
-
-    var jsonString = utf8.decode(response.bodyBytes);
-    var jsonBody = json.decode(jsonString);
-    var postsList = List<Post>();
-
-    for (var child in jsonBody) {
-      postsList.add(Post.fromJson(child));
-    }
-
-    setState(() {
-      _posts = postsList;
-    });
-
-    return true;
-  }
-
-  Future<bool> _doFetchPostsByQuery(String query) async {
-    var response = await http.get(
-      Uri.encodeFull(Client.client + 'api/posts/filter/?query=' + query),
-      headers: {
-        'Accept': 'application/json',
-      },
-    );
-
-    if (response.statusCode != 200) {
-      Flushbar(
-        messageText: Text(
-          'Неочекуван проблем! Ве молиме рестартирајте ја апликацијата.',
-          style: TextStyle(
-            color: Colors.white,
-          ),
-        ),
-        duration: Duration(
-          seconds: 3,
-        ),
-      ).show(context);
-
-      return false;
-    }
-
-    var jsonString = utf8.decode(response.bodyBytes);
-    var jsonBody = json.decode(jsonString);
-    var postsList = List<Post>();
-
-    for (var child in jsonBody) {
-      postsList.add(Post.fromJson(child));
-    }
-
-    setState(() {
-      _posts = postsList;
-    });
-
-    return true;
+    _userBloc.fetchUser();
+    _topicsBloc.fetchTopics();
+    _postsBloc.fetchPosts();
   }
 
   _onAccount() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AccountPage(),
-      ),
-    );
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (context) => AccountPage()));
   }
 
   _onLogout() async {
-    if (Token.doLogout()) {
-      var sharedPreferences = await SharedPreferences.getInstance();
-      sharedPreferences.setString('token', null);
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => LoginPage(false),
-        ),
-      );
+    if (await Token.doLogout()) {
+      Navigator.of(context)
+        .push(MaterialPageRoute(builder: (context) => LoginPage()));
     }
   }
 
@@ -262,18 +59,14 @@ class _HomePageState extends State<HomePage> {
       delegate: PostSearch(),
     );
 
-    _doFetchPostsByQuery(query);
+    _postsBloc.fetchPostsByQuery(query);
   }
 
   _onSettings(int value) {
     switch (value) {
       case 0: // Case: Settings Popup Item
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SettingsPage(),
-          ),
-        );
+        Navigator.of(context)
+        .push(MaterialPageRoute(builder: (context) => SettingsPage()));
         break;
       case 1: // Case: Information Popup Item
         showDialog(
@@ -285,7 +78,7 @@ class _HomePageState extends State<HomePage> {
                 'Информации'
               ),
               content: Text(
-                'Мистерија МК - Верзија 1.0 е софтвер кој им нуди на корисниците голем број на загатки од различен тип без притоа истиот тој да им помага во решавањето. Апликацијата е направена со цел да го зајакне критичното размислување на корисниците и притоа да им овозможи удобна околина за меѓусебна соработка.',
+                'Мистерија МК е софтвер кој им нуди на корисниците голем број на загатки од различен тип без притоа истиот тој да им помага во решавањето. Апликацијата е направена со цел да го зајакне критичното размислување на корисниците и притоа да им овозможи удобна околина за меѓусебна соработка.',
               ),
             );
           }
@@ -295,9 +88,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _onRefresh() async {
-    _doFetchPostTopics();
-    _doFetchPosts();
-    _doFetchCurrentProfile();
+    _userBloc.fetchUser();
+    _topicsBloc.fetchTopics();
+    _postsBloc.fetchPosts();
   }
 
   @override
@@ -306,7 +99,6 @@ class _HomePageState extends State<HomePage> {
       data: Theme.of(context).copyWith(
         cardColor: Colors.blueGrey,
         iconTheme: IconThemeData(
-
           color: Colors.white,
         ),
         textTheme: TextTheme(
@@ -396,8 +188,34 @@ class _HomePageState extends State<HomePage> {
             color: Colors.blueGrey,
             child: ListView(
               children: <Widget>[
-                DrawerProfileHeader(
-                  currentProfile: _currentProfile,
+                StreamBuilder<CurrentProfile>(
+                  stream: _userBloc.user,
+                  builder: (context, snapshot) {
+                    print(snapshot.data == null ? 'Null' : snapshot.data.avatar);
+                    return snapshot.data == null ? Container() : UserAccountsDrawerHeader(
+                      accountName: Text(
+                        snapshot.data.user.firstName.isEmpty ? snapshot.data.user.lastName.isEmpty ? snapshot.data.user.username : snapshot.data.user.lastName : snapshot.data.user.firstName + ' ' + snapshot.data.user.lastName,
+                      ),
+                      accountEmail: Text(
+                        snapshot.data.user.email.isEmpty ? 'Корисникот нема внесено е-пошта' : snapshot.data.user.email,
+                      ),
+                      currentAccountPicture: Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          image: DecorationImage(
+                            image: NetworkImage(
+                              snapshot.data.avatar,
+                            ),
+                            fit: BoxFit.cover,
+                          ),
+                          borderRadius: BorderRadius.all(
+                              Radius.circular(50)
+                          ),
+                        ),
+                      ),
+                    );
+                  }
                 ),
                 DrawerItem(
                   text: 'Сметка',
@@ -416,67 +234,65 @@ class _HomePageState extends State<HomePage> {
         body: Container(
           child: RefreshIndicator(
             onRefresh: _onRefresh,
-            child: ListView.builder(
-              itemCount: _posts.length == 0 ? 1 : _posts.length,
-              itemBuilder: (BuildContext context, int index) {
-                if (index == 0 && _posts.length == 0) {
-                  return Container(
-                    height: 35,
-                    margin: EdgeInsets.only(
-                      top: 3.0,
-                      bottom: 6.0,
-                    ),
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _postTopics.length,
-                      itemBuilder: (BuildContext context, int index) {
-                        return PostTopicOutlineButton(
-                          postTopic: _postTopics[index],
-                          onPressed: () {
-                            _doFetchPostsByTopic(_postTopics[index]);
-                          },
-                        );
-                      },
-                    ),
-                  );
-                } else if (index == 0) {
-                  return Column(
-                    children: <Widget>[
-                      Container(
-                        height: 35,
-                        margin: EdgeInsets.only(
-                          top: 3.0,
-                          bottom: 6.0,
-                        ),
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _postTopics.length,
-                          itemBuilder: (BuildContext context, int index) {
-                            return PostTopicOutlineButton(
-                              postTopic: _postTopics[index],
-                              onPressed: () {
-                                _doFetchPostsByTopic(_postTopics[index]);
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                      PostCard(
-                        post: _posts[index],
-                      ),
-                    ],
-                  );
-                } else {
-                  return PostCard(
-                    post: _posts[index],
-                  );
-                }
-              },
+            child: Column(
+              children: <Widget>[
+                Container(
+                  width: double.infinity,
+                  height: 35.0,
+                  margin: EdgeInsets.only(
+                    top: 3.0,
+                    bottom: 6.0,
+                  ),
+                  child: StreamBuilder<List<Topic>>(
+                    stream: _topicsBloc.topics,
+                    initialData: List(),
+                    builder: (context, snapshot) {
+                      print(snapshot.data.length);
+                      return ListView.builder(
+                        itemCount: snapshot.data.length,
+                        itemBuilder: (context, index) {
+                          return PostTopicOutlineButton(
+                            onPressed: () {
+                              _postsBloc.fetchPostsByTopic(snapshot.data[index]);
+                            },
+                            postTopic: snapshot.data[index],
+                          );
+                        },
+                        scrollDirection: Axis.horizontal,
+                      );
+                    }
+                  ),
+                ),
+                Expanded(
+                  child: StreamBuilder<List<Post>>(
+                    stream: _postsBloc.posts,
+                    initialData: List(),
+                    builder: (context, snapshot) {
+                      return ListView.builder(
+                        itemCount: snapshot.data.length,
+                        itemBuilder: (BuildContext context, int index) {
+                          return PostCard(
+                            post: snapshot.data[index],
+                          );
+                        }
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _userBloc?.dispose();
+    _topicsBloc?.dispose();
+    _postsBloc?.dispose();
   }
 }
 
@@ -523,7 +339,9 @@ class PostSearch extends SearchDelegate<String> {
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    var filteredSuggestions = _suggestions.where((suggestion) => suggestion.toLowerCase().contains(query.toLowerCase())).toList();
+    var filteredSuggestions = _suggestions
+        .where((suggestion) => suggestion.toLowerCase().contains(query.toLowerCase()))
+        .toList();
 
     if (query != '') {
       return ListView.builder(

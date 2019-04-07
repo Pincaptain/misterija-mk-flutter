@@ -7,21 +7,46 @@ import 'package:flare_flutter/flare_actor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity/connectivity.dart';
 
-import 'package:misterija_mk/models/authentication.dart';
+import 'package:misterija_mk/models/auth.dart';
 import 'package:misterija_mk/pages/login.dart';
 import 'package:misterija_mk/pages/home.dart';
 import 'package:misterija_mk/pages/no_connection.dart';
 
 class SplashPage extends StatefulWidget {
-  SplashPage({Key key}) : super(key: key);
+  SplashPage() {
+    /*
+     * Disable mobile status bar (bar with clock, battery, etc)
+     * Only enable portrait screen mode.
+     */
+    SystemChrome.setEnabledSystemUIOverlays([]);
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  }
 
   @override
-  _SplashPageState createState() => _SplashPageState();
+  State<StatefulWidget> createState() => _SplashPageState();
 }
 
 class _SplashPageState extends State<SplashPage> {
 
-  _doTransition() async {
+  _SplashPageState() {
+    /*
+     * Start the splash screen timer
+     * Once the timer ends start the transition
+     */
+    const timeout = const Duration(seconds: 3);
+    var duration = timeout;
+    new Timer(duration, doTransition);
+  }
+
+  doTransition() async {
+    /*
+     * Check multiple conditions and based on that decide the next page
+     * Check internet connectivity
+     * Check if the user is authenticated
+     */
     var sharedPreferences = await SharedPreferences.getInstance();
     var token = sharedPreferences.getString("token");
     var destination;
@@ -33,7 +58,7 @@ class _SplashPageState extends State<SplashPage> {
       Token.token = token;
       destination = HomePage();
     } else {
-      destination = LoginPage(false);
+      destination = LoginPage();
     }
 
     Navigator.push(
@@ -44,20 +69,11 @@ class _SplashPageState extends State<SplashPage> {
     );
   }
 
-  _SplashPageState() {
-    SystemChrome.setEnabledSystemUIOverlays([]);
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-    ]);
-
-    const timeout = const Duration(seconds: 3);
-    var duration = timeout;
-    new Timer(duration, _doTransition);
-  }
-
   @override
   Widget build(BuildContext context) {
+    /*
+     * Provides a view for the page
+     */
     return Scaffold(
       body: Container(
         color: Colors.blueGrey,
